@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0f11">
+<title>LocalMask · 本地视频打码</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+<input type="file" id="file" accept="video/*,.mkv" hidden>
+<input type="file" id="stickerFile" accept="image/png,image/jpeg,image/webp" hidden>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-face" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke-width="1.8"/><circle cx="9" cy="10.5" r="1.2"/><circle cx="15" cy="10.5" r="1.2"/><path d="M8.5 14.5c1.8 2 5.2 2 7 0" fill="none" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M8.5 19h7" fill="none" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="8" rx="2" fill="none" stroke-width="1.8"/><path d="M7 12h2M11 12h2M15 12h2" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-sticker" viewBox="0 0 24 24"><path d="M5 5h14v8l-6 6H5z" fill="none" stroke-width="1.8" stroke-linejoin="round"/><path d="M13 19v-6h6" fill="none" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-magic" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.9 2.1 2.1.9-2.1.9L18 21l-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+  <symbol id="i-tap" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><circle cx="12" cy="12" r="8" fill="none" stroke-width="1.8"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><rect x="4.5" y="6" width="15" height="12" rx="2" fill="none" stroke-width="1.8" stroke-dasharray="3 2.4"/></symbol>
+  <symbol id="i-fx" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5" opacity=".55"/><rect x="4" y="13" width="7" height="7" rx="1.5" opacity=".55"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+</svg>
+
+<!-- 首页 -->
+<section id="home" class="phone home" hidden>
+  <h1 class="home-title"><span class="title-mark" aria-hidden="true"></span>视频打码</h1>
+  <button id="uploadHome" class="hero">
+    <span class="hero-plus">＋</span>
+    <b>导入视频</b>
+    <small>点一下就能遮住画面里的人和东西</small>
+  </button>
+  <div class="quick">
+    <button data-quick="face"><i><svg><use href="#i-face"/></svg></i>人脸打码</button>
+    <button data-quick="text"><i><svg><use href="#i-text"/></svg></i>文字 Logo</button>
+    <button data-quick="plate"><i><svg><use href="#i-car"/></svg></i>车牌打码</button>
+    <button data-quick="sticker"><i><svg><use href="#i-sticker"/></svg></i>贴纸遮挡</button>
+  </div>
+  <div id="recentWrap" hidden>
+    <h2>草稿</h2>
+    <div id="recent" class="recent"></div>
+  </div>
+</section>
+
+<!-- 编辑 -->
+<section id="editor" class="phone editor" hidden>
+  <header class="bar">
+    <button id="back" class="icon-btn" title="返回"><svg viewBox="0 0 20 20"><path d="M12.5 4L6.5 10l6 6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="grow"></span>
+    <button id="compare" class="ghost-btn" title="按住看原片">对比</button>
+    <button id="undo" class="icon-btn" title="撤销"><svg viewBox="0 0 20 20"><path d="M8 5L3 9.5 8 14v-3c4 0 6.5 1 8.5 4-.6-4.6-3.4-7.4-8.5-7.6z"/></svg></button>
+    <button id="exportOpen" class="pill-primary">保存</button>
+  </header>
+
+  <div id="job" class="job" hidden><span id="jobText"></span><i><b id="progress"></b></i><button id="jobCancel">停止</button></div>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline preload="auto" hidden></video>
+    <canvas id="canvas" width="1280" height="720"></canvas>
+    <div id="hint" class="hint" hidden></div>
+  </div>
+
+  <div class="transport">
+    <button id="play" class="play"><svg viewBox="0 0 20 20"><path id="playIcon" d="M6 4l10 6-10 6z"/></svg></button>
+    <span id="clock" class="clock">00:00</span>
+    <div id="scrub" class="scrub"><div id="scrubRange" class="scrub-range"></div><div id="scrubMarks"></div><div id="scrubFill" class="scrub-fill"></div><div id="scrubKnob" class="scrub-knob"></div></div>
+    <span id="dur" class="clock dim">00:00</span>
+  </div>
+
+  <div id="chips" class="chips"></div>
+
+  <!-- 弹出面板 -->
+  <div id="sheet" class="sheet-panel" hidden>
+    <form id="describe" class="describe" hidden>
+      <input id="prompt" autocomplete="off" placeholder="要遮什么？人脸、车牌、logo…">
+      <button type="submit" class="pill-primary">识别</button>
+    </form>
+    <p id="toolTip" class="tool-tip" hidden></p>
+    <div id="sideIntro" class="side-intro" hidden><b>开始打码</b><span>点上面的「智能识别」写一句话自动找，或者用「点选」直接点画面里的人和东西。</span></div>
+
+    <div id="stylePane" hidden>
+      <div class="fx" id="fxRow">
+        <button data-fx="mosaic"><canvas width="96" height="96"></canvas><span>马赛克</span></button>
+        <button data-fx="blur"><canvas width="96" height="96"></canvas><span>磨砂</span></button>
+        <button data-fx="solid"><canvas width="96" height="96"></canvas><span>色块</span></button>
+        <button data-fx="cloud"><canvas width="96" height="96"></canvas><span>云朵</span></button>
+        <button data-fx="sticker"><canvas width="96" height="96"></canvas><span>贴纸</span></button>
+      </div>
+      <div id="stickerRow" class="sticker-row" hidden></div>
+      <div id="swatches" class="swatches" hidden></div>
+      <label id="strengthRow" class="slider"><span>强度</span><input id="strength" type="range" min="0" max="100" value="50"></label>
+      <label id="sizeRow" class="slider"><span>大小</span><input id="sizeRange" type="range" min="0" max="100" value="40"><output id="sizeOut"></output></label>
+      <div id="objActions" class="actions">
+        <button id="faceToggle" class="pill-primary" hidden>不遮这个人</button>
+        <button id="trackBtn" class="pill-primary">跟随整段</button>
+        <button id="refineBtn" class="pill">修轮廓</button>
+        <div id="refineSeg" class="seg" hidden><button data-r="add" class="on">加一块</button><button data-r="sub">去掉一块</button></div>
+        <button id="removeBtn" class="pill danger">删除</button>
+        <span class="grow"></span>
+        <button id="doneBtn" class="text-btn">完成</button>
+      </div>
+      <p id="selNote" class="note" hidden></p>
+      <details class="more" id="moreBox">
+        <summary>更多</summary>
+        <div class="seg-row"><span>形状</span><div class="seg" id="shapeSeg"><button data-shape="contour">贴合</button><button data-shape="rect">矩形</button><button data-shape="ellipse">椭圆</button></div></div>
+        <div class="seg-row"><span>跟随</span><div class="seg" id="qualitySeg"><button data-q="fast" class="on">快</button><button data-q="standard">标准</button><button data-q="fine">精细</button></div></div>
+        <div class="seg-row"><span>时间</span><div class="seg"><button id="startHere">从这开始</button><button id="endHere">到这结束</button><button id="toEnd">到结尾</button></div></div>
+        <button id="applyAll" class="text-btn">把效果用到全部</button>
+      </details>
+    </div>
+  </div>
+
+  <!-- 底部工具栏 -->
+  <nav class="tabbar">
+    <button data-tool="text" class="tool"><i><svg><use href="#i-magic"/></svg></i>智能识别</button>
+    <button data-tool="point" class="tool"><i><svg><use href="#i-tap"/></svg></i>点选</button>
+    <button data-tool="box" class="tool"><i><svg><use href="#i-box"/></svg></i>框选</button>
+    <button data-tool="fx" class="tool"><i><svg><use href="#i-fx"/></svg></i>效果</button>
+  </nav>
+</section>
+
+<div id="drop" class="drop" hidden>松开导入视频</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<dialog id="exportDialog" class="sheet">
+  <form method="dialog" class="sheet-head"><h2>保存视频</h2><button class="icon-btn" aria-label="关闭">✕</button></form>
+  <div id="exportBody"></div>
+</dialog>
+
+<div id="cardMenu" class="card-menu" hidden><button id="menuRename">改名</button><button id="menuDelete" class="danger">删除</button></div>
+<dialog id="confirmDialog" class="sheet small">
+  <div class="sheet-body confirm"><h2 id="confirmTitle"></h2><p id="confirmText" class="note"></p><input id="confirmInput" hidden>
+  <div class="confirm-actions"><button id="confirmNo" class="pill">取消</button><button id="confirmYes" class="pill-primary">确定</button></div></div>
+</dialog>
+
+<dialog id="aiDialog" class="sheet">
+  <form method="dialog" class="sheet-head"><h2>需要先装 AI 组件</h2><button class="icon-btn" aria-label="关闭">✕</button></form>
+  <div class="sheet-body"><p>请重新运行一次安装命令（见项目说明），装好后刷新页面。</p><p class="note" id="aiError"></p></div>
+</dialog>
+
+<script src="box-edit.js"></script>
+<script src="render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
